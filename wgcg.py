@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import codecs
-from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from cryptography.hazmat.primitives import serialization
-from pathlib import Path
-import qrcode
 import ipaddress
+from pathlib import Path
+
+import qrcode
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
 server_config_file = Path("server.conf")
 server_private_file = Path("private.key")
@@ -16,11 +17,13 @@ def generate_keys():
     bytes_ = private_key.private_bytes(
         encoding=serialization.Encoding.Raw,
         format=serialization.PrivateFormat.Raw,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
-    private = codecs.encode(bytes_, 'base64').decode('utf8').strip()
-    pubkey = private_key.public_key().public_bytes(encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw)
-    public = codecs.encode(pubkey, 'base64').decode('utf8').strip()
+    private = codecs.encode(bytes_, "base64").decode("utf8").strip()
+    pubkey = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+    )
+    public = codecs.encode(pubkey, "base64").decode("utf8").strip()
     return private, public
 
 
@@ -41,7 +44,9 @@ def create_server_config(server_address, server_endpoint):
     return server_public
 
 
-def create_client_config(server_public, server_endpoint, client_name, client_address, client_net):
+def create_client_config(
+    server_public, server_endpoint, client_name, client_address, client_net
+):
     client_private, client_public = generate_keys()
     Path(client_name).mkdir(parents=True)
     client_config_file = Path(f"{client_name}/client.conf")
@@ -91,24 +96,51 @@ def create_client_config(server_public, server_endpoint, client_name, client_add
 
 
 def get_server():
-    if server_config_file.is_file() and server_private_file.is_file() and server_public_file.is_file():
+    if (
+        server_config_file.is_file()
+        and server_private_file.is_file()
+        and server_public_file.is_file()
+    ):
         with open(server_public_file, "r") as f:
             server_public = f.read()
         with open(server_config_file, "r") as f:
             server_config = f.read().splitlines()
-        clients = [ipaddress.ip_address(x.strip().split(" = ")[1][:-3]) for x in server_config if "AllowedIPs" in x]
-        server_endpoint = [x.strip().split()[3] for x in server_config if "clients endpoint" in x][0]
-        server_endpoint_address, _, server_endpoint_port = server_endpoint.rpartition(':')
+        clients = [
+            ipaddress.ip_address(x.strip().split(" = ")[1][:-3])
+            for x in server_config
+            if "AllowedIPs" in x
+        ]
+        server_endpoint = [
+            x.strip().split()[3] for x in server_config if "clients endpoint" in x
+        ][0]
+        server_endpoint_address, _, server_endpoint_port = server_endpoint.rpartition(
+            ":"
+        )
         server_endpoint_address = ipaddress.ip_address(server_endpoint_address)
-        server_address = [ipaddress.ip_address(x.strip().split(" = ")[1][:-3]) for x in server_config if "Address" in x][0]
+        server_address = [
+            ipaddress.ip_address(x.strip().split(" = ")[1][:-3])
+            for x in server_config
+            if "Address" in x
+        ][0]
     else:
         server_endpoint = input("server_endpoint '1.1.1.1:55588': ") or "1.1.1.1:55588"
-        server_endpoint_address, _, server_endpoint_port = server_endpoint.rpartition(':')
+        server_endpoint_address, _, server_endpoint_port = server_endpoint.rpartition(
+            ":"
+        )
         server_endpoint_address = ipaddress.ip_address(server_endpoint_address)
-        server_address = ipaddress.ip_address(input("server_address '192.168.0.1': ") or "192.168.0.1")
-        server_public = create_server_config(server_address, (server_endpoint_address, server_endpoint_port))
+        server_address = ipaddress.ip_address(
+            input("server_address '192.168.0.1': ") or "192.168.0.1"
+        )
+        server_public = create_server_config(
+            server_address, (server_endpoint_address, server_endpoint_port)
+        )
         clients = []
-    return server_public, server_address, (server_endpoint_address, server_endpoint_port), clients
+    return (
+        server_public,
+        server_address,
+        (server_endpoint_address, server_endpoint_port),
+        clients,
+    )
 
 
 def get_clients():
@@ -125,6 +157,8 @@ if len(clients) < 253:
     client_net = input("server_net '0.0.0.0/0': ") or "0.0.0.0/0"
     client_net = f"{server_address},{client_net}"
     client_config_file = Path(f"{client_name}/client.conf")
-    create_client_config(server_public, server_endpoint, client_name, client_address, client_net)
+    create_client_config(
+        server_public, server_endpoint, client_name, client_address, client_net
+    )
 else:
     print(f"too many clients {server_address}")
